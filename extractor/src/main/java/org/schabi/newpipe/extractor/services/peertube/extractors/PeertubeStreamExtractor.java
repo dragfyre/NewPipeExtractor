@@ -26,6 +26,7 @@ import org.schabi.newpipe.extractor.services.peertube.linkHandler.PeertubeStream
 import org.schabi.newpipe.extractor.stream.AudioStream;
 import org.schabi.newpipe.extractor.stream.DeliveryMethod;
 import org.schabi.newpipe.extractor.stream.Description;
+import org.schabi.newpipe.extractor.stream.Frameset;
 import org.schabi.newpipe.extractor.stream.Stream;
 import org.schabi.newpipe.extractor.stream.StreamExtractor;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
@@ -315,6 +316,27 @@ public class PeertubeStreamExtractor extends StreamExtractor {
         } catch (final ParsingException e) {
             return "";
         }
+    }
+
+    @Nonnull
+    @Override
+    public List<StreamSegment> getStreamSegments()
+            throws ParsingException, IOException, ReCaptchaException {
+        final List<StreamSegment> segments = new ArrayList<>();
+        final JsonObject segmentsJson = fetchSubApiContent("chapters");
+        if (segmentsJson != null && segmentsJson.has("chapters")) {
+            final JsonArray segmentsArray = segmentsJson.getArray("chapters");
+            for (final Object segment : segmentsArray) {
+                if (segment instanceof JsonObject) {
+                    final JsonObject segmentObject = (JsonObject) segment;
+                    segments.add(new StreamSegment(
+                            segmentObject.getString("title"),
+                            segmentObject.getInt("timecode")));
+                }
+            }
+        }
+
+        return segments;
     }
 
     @Nonnull

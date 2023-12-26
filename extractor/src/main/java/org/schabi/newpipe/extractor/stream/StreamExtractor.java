@@ -393,7 +393,7 @@ public abstract class StreamExtractor extends Extractor {
      *         for specified stream
      */
     @Nonnull
-    public List<Frameset> getFrames() throws ExtractionException {
+    public List<Frameset> getFrames() throws ExtractionException, IOException {
         return Collections.emptyList();
     }
 
