@@ -31,6 +31,7 @@ import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ParsingException;
+import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.linkhandler.LinkHandler;
 import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.utils.Parser;
@@ -546,7 +547,8 @@ public abstract class StreamExtractor extends Extractor {
      * @return The list of segments of the stream or an empty list.
      */
     @Nonnull
-    public List<StreamSegment> getStreamSegments() throws ParsingException {
+    public List<StreamSegment> getStreamSegments()
+            throws ParsingException, IOException, ReCaptchaException {
         return Collections.emptyList();
     }
 

@@ -29,6 +29,7 @@ import org.schabi.newpipe.extractor.stream.Description;
 import org.schabi.newpipe.extractor.stream.Stream;
 import org.schabi.newpipe.extractor.stream.StreamExtractor;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemsCollector;
+import org.schabi.newpipe.extractor.stream.StreamSegment;
 import org.schabi.newpipe.extractor.stream.StreamType;
 import org.schabi.newpipe.extractor.stream.SubtitlesStream;
 import org.schabi.newpipe.extractor.stream.VideoStream;
@@ -314,6 +315,37 @@ public class PeertubeStreamExtractor extends StreamExtractor {
         } catch (final ParsingException e) {
             return "";
         }
+    }
+
+    @Nonnull
+    @Override
+    public List<Frameset> getFrames() throws ExtractionException, IOException {
+        final List<Frameset> framesets = new ArrayList<>();
+        final JsonObject storyboards = fetchSubApiContent("storyboards");
+        if (storyboards != null && storyboards.has("storyboards")) {
+            final JsonArray storyboardsArray = storyboards.getArray("storyboards");
+            for (final Object storyboard : storyboardsArray) {
+                if (storyboard instanceof JsonObject) {
+                    final JsonObject storyboardObject = (JsonObject) storyboard;
+                    final String url = storyboardObject.getString("storyboardPath");
+                    final int width = storyboardObject.getInt("spriteWidth");
+                    final int height = storyboardObject.getInt("spriteHeight");
+                    final int totalWidth = storyboardObject.getInt("totalWidth");
+                    final int totalHeight = storyboardObject.getInt("totalHeight");
+                    final int framesPerPageX = totalWidth / width;
+                    final int framesPerPageY = totalHeight / height;
+                    final int count = framesPerPageX * framesPerPageY;
+                    final int durationPerFrame = storyboardObject.getInt("spriteDuration") * 1000;
+
+                    framesets.add(new Frameset(
+                            List.of(baseUrl + url), // there is only one image per video
+                            width, height, count,
+                            durationPerFrame, framesPerPageX, framesPerPageY));
+                }
+            }
+        }
+
+        return framesets;
     }
 
     @Nonnull
@@ -633,6 +665,41 @@ public class PeertubeStreamExtractor extends StreamExtractor {
                     .setResolution(resolution)
                     .setMediaFormat(format)
                     .build());
+        }
+    }
+
+    /**
+     * Fetch content from a sub-API of the video.
+     * @param subPath the API subpath after the video id,
+     *                e.g. "chapters" for "/api/v1/videos/{id}/storyboards"
+     * @return the {@link JsonObject} of the sub-API or null if the API does not exist
+     * which is the case if the instance has an outdated PeerTube version.
+     * @throws ParsingException if the API response could not be parsed to a {@link JsonObject}
+     * @throws IOException if the API response could not be fetched
+     * @throws ReCaptchaException if the API response is a reCaptcha
+     */
+    @Nullable
+    private JsonObject fetchSubApiContent(@Nonnull final String subPath)
+            throws ParsingException, IOException, ReCaptchaException {
+        final String apiUrl = baseUrl + PeertubeStreamLinkHandlerFactory.VIDEO_API_ENDPOINT
+                + getId() + "/" + subPath;
+        final Response response = getDownloader().get(apiUrl);
+        if (response == null) {
+            throw new ParsingException("Could not get segments from API.");
+        }
+        if (response.responseCode() == 400) {
+            // Chapter or segments support was added with PeerTube v6.0.0
+            // This instance does not support it yet.
+            return null;
+        }
+        if (response.responseCode() != 200) {
+            throw new ParsingException("Could not get segments from API. Response code: "
+                    + response.responseCode());
+        }
+        try {
+            return JsonParser.object().from(response.responseBody());
+        } catch (final JsonParserException e) {
+            throw new ParsingException("Could not parse json data for segments", e);
         }
     }
 
